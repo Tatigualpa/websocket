@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>WebSocket Test Client</title>
+</head>
+
+<body>
+  <h2>WebSocket Debug Client</h2>
+  <div>
+    <input type="text" id="messageInput" placeholder="Escribe un mensaje" />
+    <button onclick="sendMessage()">Enviar</button>
+    <button onclick="connect()">Conectar</button>
+    <button onclick="disconnect()">Desconectar</button>
+  </div>
+  <div>
+    <h3>Status: <span id="status">Desconectado</span></h3>
+    <h3>Mensajes:</h3>
+    <div id="messages" style="border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px;"></div>
+  </div>
+
+  <script>
+    let ws = null;
+
+    function connect() {
+      ws = new WebSocket('ws://localhost:8080');
+
+      ws.onopen = function () {
+        document.getElementById('status').textContent = 'Conectado';
+        addMessage('🔗 Conectado al servidor');
+      };
+
+      ws.onmessage = function (event) {
+        console.log('📨 Mensaje recibido:', event.data);
+        try {
+          const msg = JSON.parse(event.data);
+          addMessage('📨 Recibido: ' + JSON.stringify(msg, null, 2));
+        } catch (e) {
+          addMessage('📨 Recibido (raw): ' + event.data);
+        }
+      };
+
+      ws.onclose = function () {
+        document.getElementById('status').textContent = 'Desconectado';
+        addMessage('❌ Conexión cerrada');
+      };
+
+      ws.onerror = function (error) {
+        addMessage('💥 Error: ' + error);
+      };
+    }
+
+    function sendMessage() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('No hay conexión');
+        return;
+      }
+
+      const text = document.getElementById('messageInput').value;
+      if (!text) return;
+
+      // Enviar el mismo formato que Angular
+      const message = {
+        type: 'chat',
+        payload: { text: text, ts: Date.now() }
+      };
+
+      console.log('📤 Enviando:', message);
+      ws.send(JSON.stringify(message));
+      addMessage('📤 Enviado: ' + JSON.stringify(message, null, 2));
+
+      document.getElementById('messageInput').value = '';
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.close();
+      }
+    }
+
+    function addMessage(text) {
+      const div = document.createElement('div');
+      div.innerHTML = '<pre>' + text + '</pre>';
+      div.style.borderBottom = '1px solid #eee';
+      div.style.padding = '5px';
+      document.getElementById('messages').appendChild(div);
+      document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+    }
+
+    // Auto conectar
+    window.onload = function () {
+      connect();
+    }
+
+    // Enviar con Enter
+    document.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter' && document.activeElement === document.getElementById('messageInput')) {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+
+</html>
